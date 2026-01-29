@@ -200,13 +200,11 @@ export default function VisualizationWindow({
   vizParams, 
   setVizParams, 
   onSaveDefaults, 
-  onResetDefaults, 
-  onRefreshViz,
-  onRegenerateNetwork
+  onResetDefaults,
+  onRefreshViz
 }) {
   const presets = Object.values(VISUAL_PRESETS);
   const [saveStatus, setSaveStatus] = useState(null);
-  const [pendingStructureChange, setPendingStructureChange] = useState(false);
   
   const { position, size, isDragging, handleMouseDown, handleResizeMouseDown } = useFloatingWindow({
     initialPosition: WINDOW_DEFAULTS.layout.visualization.position,
@@ -216,12 +214,6 @@ export default function VisualizationWindow({
 
   const handleVizParamChange = useCallback((param, value) => {
     setVizParams(prev => ({ ...prev, [param]: value }));
-    
-    // Mark structure changes that need network regeneration
-    const structureParams = ['nodeCount', 'helixRadius', 'helixHeight', 'helixTurns', 'strandCount'];
-    if (structureParams.includes(param)) {
-      setPendingStructureChange(true);
-    }
   }, [setVizParams]);
   
   const handleSaveDefaults = useCallback(() => {
@@ -235,20 +227,10 @@ export default function VisualizationWindow({
   const handleResetDefaults = useCallback(() => {
     if (onResetDefaults) {
       onResetDefaults();
-      setPendingStructureChange(true);
       setSaveStatus('↺ Reset to defaults');
       setTimeout(() => setSaveStatus(null), 2000);
     }
   }, [onResetDefaults]);
-  
-  const handleApplyStructure = useCallback(() => {
-    if (onRegenerateNetwork) {
-      onRegenerateNetwork();
-      setPendingStructureChange(false);
-      setSaveStatus('🧬 Network regenerated!');
-      setTimeout(() => setSaveStatus(null), 2000);
-    }
-  }, [onRegenerateNetwork]);
   
   // Check if AI controls are enabled for a parameter category
   const isAiControlled = (category) => {
@@ -313,64 +295,47 @@ export default function VisualizationWindow({
           </div>
         </Section>
 
-        {/* Structure Settings - these require network regeneration */}
-        <Section title="Helix Structure" themeColor={themeColor} badge={pendingStructureChange ? "APPLY" : null}>
-          <div style={{ 
-            fontSize: '10px', 
-            color: 'rgba(255,180,100,0.8)', 
-            marginBottom: 10,
-            padding: '6px 8px',
-            background: 'rgba(255,180,100,0.1)',
-            borderRadius: 6,
-            display: pendingStructureChange ? 'block' : 'none'
+        {/* Volume Cloud Parameters */}
+        <Section title="Volume Cloud" themeColor={themeColor} defaultOpen={true}>
+          <div style={{
+            fontSize: '10px',
+            color: 'rgba(255,255,255,0.5)',
+            marginBottom: 12,
+            padding: '8px',
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: 6
           }}>
-            ⚠ Structure changed - click "Apply Structure" to regenerate
+            Controls for the volumetric cloud visualization using 3D Perlin noise and ray marching.
           </div>
           <SliderRow
-            label="Node Count"
-            value={vizParams.nodeCount ?? 120}
-            min={20} max={300} step={10}
-            onChange={(v) => handleVizParamChange('nodeCount', v)}
+            label="Threshold"
+            value={vizParams.threshold ?? 0.25}
+            min={0.0} max={1.0} step={0.01}
+            onChange={(v) => handleVizParamChange('threshold', v)}
+            themeColor={themeColor}
+          />
+          <SliderRow
+            label="Opacity"
+            value={vizParams.opacity ?? 0.25}
+            min={0.0} max={1.0} step={0.01}
+            onChange={(v) => handleVizParamChange('opacity', v)}
+            themeColor={themeColor}
+          />
+          <SliderRow
+            label="Range"
+            value={vizParams.range ?? 0.1}
+            min={0.0} max={0.5} step={0.01}
+            onChange={(v) => handleVizParamChange('range', v)}
+            themeColor={themeColor}
+          />
+          <SliderRow
+            label="Ray Steps"
+            value={vizParams.steps ?? 100}
+            min={10} max={200} step={5}
+            onChange={(v) => handleVizParamChange('steps', v)}
             themeColor={themeColor}
             integer
           />
-          <SliderRow
-            label="Helix Radius"
-            value={vizParams.helixRadius ?? 2.5}
-            min={1.0} max={5.0} step={0.1}
-            onChange={(v) => handleVizParamChange('helixRadius', v)}
-            themeColor={themeColor}
-          />
-          <SliderRow
-            label="Helix Height"
-            value={vizParams.helixHeight ?? 14}
-            min={5} max={30} step={1}
-            onChange={(v) => handleVizParamChange('helixHeight', v)}
-            themeColor={themeColor}
-            integer
-          />
-          <SliderRow
-            label="Helix Turns"
-            value={vizParams.helixTurns ?? 2.5}
-            min={1.0} max={5.0} step={0.25}
-            onChange={(v) => handleVizParamChange('helixTurns', v)}
-            themeColor={themeColor}
-          />
-          <SliderRow
-            label="Strand Count"
-            value={vizParams.strandCount ?? 2}
-            min={1} max={4} step={1}
-            onChange={(v) => handleVizParamChange('strandCount', v)}
-            themeColor={themeColor}
-            integer
-          />
-          {pendingStructureChange && (
-            <div style={{ marginTop: 8 }}>
-              <ActionButton onClick={handleApplyStructure} themeColor={themeColor} primary>
-                🧬 Apply Structure Changes
-              </ActionButton>
-            </div>
-          )}
         </Section>
 
         {/* AI Control Toggles */}
