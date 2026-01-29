@@ -20,30 +20,34 @@ const MAX_EDGES = CONFIG.maxEdges
 const CURVE_SEGMENTS = 24 // More segments for smoother organic curves
 const OFFSCREEN = CONFIG.offscreen
 
-// Line shader materials inspired by three.js custom attributes example
-const lineVertexShader = `
-  uniform float amplitude;
-  uniform float time;
-  attribute vec3 displacement;
-  attribute vec3 customColor;
-  varying vec3 vColor;
-
-  void main() {
-    vec3 newPosition = position + amplitude * displacement * sin(time + position.x * 0.01);
-    vColor = customColor;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
-  }
-`
-
-const lineFragmentShader = `
-  uniform vec3 color;
-  uniform float opacity;
-  varying vec3 vColor;
-
-  void main() {
-    gl_FragColor = vec4(vColor * color, opacity);
-  }
-`
+// Organic glow texture with softer, more natural falloff
+function createOrganicGlowTexture() {
+  const size = 256
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')
+  
+  // Organic multi-layered glow with natural falloff
+  const gradient = ctx.createRadialGradient(size/2, size/2, 0, size/2, size/2, size/2)
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 1)')
+  gradient.addColorStop(0.03, 'rgba(255, 255, 255, 0.98)')
+  gradient.addColorStop(0.08, 'rgba(255, 255, 255, 0.92)')
+  gradient.addColorStop(0.15, 'rgba(255, 255, 255, 0.8)')
+  gradient.addColorStop(0.25, 'rgba(255, 255, 255, 0.6)')
+  gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.35)')
+  gradient.addColorStop(0.55, 'rgba(255, 255, 255, 0.18)')
+  gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.08)')
+  gradient.addColorStop(0.85, 'rgba(255, 255, 255, 0.02)')
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)')
+  
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, size, size)
+  
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.needsUpdate = true
+  return texture
+}
 
 // Organic node class - each node has its own life cycle
 class OrganicNode {
@@ -867,22 +871,6 @@ export default function NeuralNetwork({
       geo.attributes.color.array.set(currentLineCol.current)
       geo.attributes.position.needsUpdate = true
       geo.attributes.color.needsUpdate = true
-
-      // Animate custom attributes like in three.js example
-      const displacement = geo.attributes.displacement.array
-      for (let i = 0, l = displacement.length; i < l; i += 3) {
-        displacement[i] += 0.3 * (0.5 - Math.random()) * delta
-        displacement[i + 1] += 0.3 * (0.5 - Math.random()) * delta
-        displacement[i + 2] += 0.3 * (0.5 - Math.random()) * delta
-      }
-      geo.attributes.displacement.needsUpdate = true
-    }
-
-    // Update line shader uniforms
-    if (lineUniformsRef.current) {
-      lineUniformsRef.current.time.value = time
-      lineUniformsRef.current.amplitude.value = Math.sin(time * 0.5) * 0.5 + 0.5
-      lineUniformsRef.current.opacity.value = aiControl.link_opacity ?? 0.8
     }
     
     // === UPDATE MATERIAL SIZES AND OPACITIES ===
@@ -940,38 +928,10 @@ export default function NeuralNetwork({
   }, [])
   const linePositions = useMemo(() => new Float32Array(MAX_EDGES * CURVE_SEGMENTS * 2 * 3), [])
   const lineColors = useMemo(() => new Float32Array(MAX_EDGES * CURVE_SEGMENTS * 2 * 3), [])
-  const lineDisplacements = useMemo(() => new Float32Array(MAX_EDGES * CURVE_SEGMENTS * 2 * 3), [])
-  const lineCustomColors = useMemo(() => new Float32Array(MAX_EDGES * CURVE_SEGMENTS * 2 * 3), [])
-
-  // Initialize custom attributes
-  useEffect(() => {
-    const displacement = lineDisplacements
-    const customColor = lineCustomColors
-    const color = new THREE.Color()
-
-    for (let i = 0, l = customColor.length; i < l; i += 3) {
-      // Random displacement
-      displacement[i] = (Math.random() - 0.5) * 0.1
-      displacement[i + 1] = (Math.random() - 0.5) * 0.1
-      displacement[i + 2] = (Math.random() - 0.5) * 0.1
-
-      // HSL color based on position
-      color.setHSL(i / l, 0.7, 0.6)
-      color.toArray(customColor, i)
-    }
-  }, [lineDisplacements, lineCustomColors])
-
-  // Line shader uniforms
-  const lineUniformsRef = useRef({
-    amplitude: { value: 1.0 },
-    time: { value: 0 },
-    color: { value: new THREE.Color(1, 1, 1) },
-    opacity: { value: aiControl.link_opacity ?? 0.8 }
-  })
   
   return (
     <group ref={groupRef}>
-      {/* Organic flowing connections with custom attributes */}
+      {/* Organic flowing connections */}
       <lineSegments ref={linesRef}>
         <bufferGeometry>
           <bufferAttribute
@@ -986,26 +946,13 @@ export default function NeuralNetwork({
             array={lineColors}
             itemSize={3}
           />
-          <bufferAttribute
-            attach="attributes-displacement"
-            count={MAX_EDGES * CURVE_SEGMENTS * 2}
-            array={lineDisplacements}
-            itemSize={3}
-          />
-          <bufferAttribute
-            attach="attributes-customColor"
-            count={MAX_EDGES * CURVE_SEGMENTS * 2}
-            array={lineCustomColors}
-            itemSize={3}
-          />
         </bufferGeometry>
-        <shaderMaterial
-          uniforms={lineUniformsRef.current}
-          vertexShader={lineVertexShader}
-          fragmentShader={lineFragmentShader}
+        <lineBasicMaterial
+          vertexColors
+          transparent
+          opacity={aiControl.link_opacity ?? 0.8}
           blending={THREE.AdditiveBlending}
-          depthTest={false}
-          transparent={true}
+          depthWrite={false}
         />
       </lineSegments>
       
