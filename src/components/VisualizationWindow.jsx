@@ -200,13 +200,20 @@ export default function VisualizationWindow({
   vizParams, 
   setVizParams, 
   onSaveDefaults, 
-  onResetDefaults,
+  onResetDefaults, 
   onRefreshViz,
   onRegenerateNetwork
 }) {
   const presets = Object.values(VISUAL_PRESETS);
   const [saveStatus, setSaveStatus] = useState(null);
   const [pendingStructureChange, setPendingStructureChange] = useState(false);
+  
+  const { position, size, isDragging, handleMouseDown, handleResizeMouseDown } = useFloatingWindow({
+    initialPosition: WINDOW_DEFAULTS.layout.visualization.position,
+    initialSize: { width: 500, height: 720 },
+    minSize: WINDOW_DEFAULTS.layout.visualization.minSize
+  });
+
   const handleVizParamChange = useCallback((param, value) => {
     setVizParams(prev => ({ ...prev, [param]: value }));
     
@@ -306,9 +313,10 @@ export default function VisualizationWindow({
           </div>
         </Section>
 
-        {/* Network Structure */}
+        {/* Structure Settings - these require network regeneration */}
         <Section title="Helix Structure" themeColor={themeColor} badge={pendingStructureChange ? "APPLY" : null}>
           <div style={{ 
+            fontSize: '10px', 
             color: 'rgba(255,180,100,0.8)', 
             marginBottom: 10,
             padding: '6px 8px',
@@ -363,49 +371,6 @@ export default function VisualizationWindow({
               </ActionButton>
             </div>
           )}
-        </Section>
-
-        {/* Volume Cloud Parameters */}
-        <Section title="Volume Clouds" themeColor={themeColor} defaultOpen={true}>
-          <div style={{
-            fontSize: '10px',
-            color: 'rgba(255,255,255,0.5)',
-            marginBottom: 12,
-            padding: '8px',
-            background: 'rgba(255,255,255,0.02)',
-            borderRadius: 6
-          }}>
-            Semi-transparent volumetric clouds that follow the helix nodes.
-          </div>
-          <SliderRow
-            label="Cloud Threshold"
-            value={vizParams.threshold ?? 0.3}
-            min={0.0} max={1.0} step={0.01}
-            onChange={(v) => handleVizParamChange('threshold', v)}
-            themeColor={themeColor}
-          />
-          <SliderRow
-            label="Cloud Opacity"
-            value={vizParams.opacity ?? 0.15}
-            min={0.0} max={1.0} step={0.01}
-            onChange={(v) => handleVizParamChange('opacity', v)}
-            themeColor={themeColor}
-          />
-          <SliderRow
-            label="Cloud Range"
-            value={vizParams.range ?? 0.1}
-            min={0.0} max={0.5} step={0.01}
-            onChange={(v) => handleVizParamChange('range', v)}
-            themeColor={themeColor}
-          />
-          <SliderRow
-            label="Cloud Steps"
-            value={vizParams.steps ?? 50}
-            min={10} max={100} step={5}
-            onChange={(v) => handleVizParamChange('steps', v)}
-            themeColor={themeColor}
-            integer
-          />
         </Section>
 
         {/* AI Control Toggles */}
