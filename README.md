@@ -182,7 +182,7 @@ This project is in active development. Contributions are welcome for:
 
 ## Acknowledgments
 
-Inspired by the philosophy and aesthetic of [hyprland](https://hyprland.org)
+Inspired by the philosophy and aesthetic of [hyprland](https://hyprland.org) without the tiling element obviously. 
 
 ---
 
